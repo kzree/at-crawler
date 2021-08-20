@@ -2,6 +2,10 @@ import requests
 from bs4 import BeautifulSoup
 
 def get_price(prices):
+    """
+    Checks both of the prices that are contained in the price container.
+    The second price is always 0.00€ unless there is a sale.
+    """
     price = ""
     for pr in prices:
         pr_text = pr.text.strip()
@@ -10,6 +14,10 @@ def get_price(prices):
     return price
 
 def get_item(card):
+    """
+    Gets card element and checks if it has h2 in it, only product cards
+    have a h2 element in it.
+    """
     title = card.find("h2")
     price = ""
     if title is not None:
