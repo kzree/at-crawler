@@ -27,21 +27,44 @@ def get_item(card):
 
     return (title, price)
 
+def get_last_page(pagination):
+    """Gets the last page number from the pagination element"""
+    pagination_items = pagination.find_all("li")
+    return int(pagination_items[len(pagination_items) - 2].text)
+
+def get_page_data(item_list, page):
+    """Gets all the cards on the page and extracts the data from the cards"""
+    cards = page.find_all("div", class_="card")
+
+    for card in cards:
+        item = get_item(card)
+        if item[0] is not None:
+            item_list.append(item)
+
+def get_parsed_page(url):
+    page = requests.get(url)
+    return BeautifulSoup(page.content, "html.parser")
+
 def print_list(items):
     for item in items:
-        print("{} - {}".format(item[1], item[0]))
+        item_data = "{} - {}".format(item[1], item[0])
+        print((item_data[:97] + '...') if len(item_data) > 100 else item_data)
 
-URL = "https://arvutitark.ee/est/Otsing?q=3080&page=3"
-page = requests.get(URL)
+def main():
+    """Main function"""
+    base_url = "https://arvutitark.ee/est/Otsing?q=3080"
 
-soup = BeautifulSoup(page.content, "html.parser")
-cards = soup.find_all("div", class_="card")
+    parsed_page = get_parsed_page(base_url) 
+    last_page = get_last_page(parsed_page.find("ul", {'class': 'pagination'}))
 
-items = [] 
+    items = []
+    get_page_data(items, parsed_page)
 
-for card in cards:
-    item = get_item(card)
-    if item[0] is not None:
-        items.append(item)
+    if last_page > 1:
+        for i in range(2, last_page + 1):
+            url = base_url + "&page={}".format(i)
+            get_page_data(items, get_parsed_page(url))
 
-print_list(items)
+    print_list(items)
+
+main()
