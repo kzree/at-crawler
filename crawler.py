@@ -1,7 +1,17 @@
+import config
 import requests
 from bs4 import BeautifulSoup
 
-def get_price(prices):
+BASE_URL = "https://arvutitark.ee/est/Otsing?q="
+
+def is_price_in_bounds(price, min, max):
+    if (price < min):
+        return False
+    if (max is not None and price > max):
+        return False
+    return True
+
+def get_price(prices, min, max):
     """
     Checks both of the prices that are contained in the price container.
     The second price is always 0.00€ unless there is a sale.
@@ -11,9 +21,9 @@ def get_price(prices):
         pr_text = pr.text.strip()
         if pr_text != "0.00€":
             price = pr_text
-    return price
+    return price if is_price_in_bounds(int(price.split(".")[0].replace(" ", "")), min, max) else None
 
-def get_item(card):
+def get_item(card, conf):
     """
     Gets card element and checks if it has h2 in it, only product cards
     have a h2 element in it.
@@ -23,7 +33,7 @@ def get_item(card):
     if title is not None:
         title = title.text.strip()
         prices = card.find_all("span", class_="price")
-        price = get_price(prices)
+        price = get_price(prices, conf.min, conf.max)
 
     return (title, price)
 
@@ -32,13 +42,13 @@ def get_last_page(pagination):
     pagination_items = pagination.find_all("li")
     return int(pagination_items[len(pagination_items) - 2].text)
 
-def get_page_data(item_list, page):
+def get_page_data(item_list, page, conf):
     """Gets all the cards on the page and extracts the data from the cards"""
     cards = page.find_all("div", class_="card")
 
     for card in cards:
-        item = get_item(card)
-        if item[0] is not None:
+        item = get_item(card, conf)
+        if item[0] is not None and item[1] is not None:
             item_list.append(item)
 
 def get_parsed_page(url):
@@ -52,18 +62,20 @@ def print_list(items):
 
 def main():
     """Main function"""
-    base_url = "https://arvutitark.ee/est/Otsing?q=3080"
+    conf = config.get_application_arguments()
 
-    parsed_page = get_parsed_page(base_url) 
+    url = BASE_URL + conf.name
+
+    parsed_page = get_parsed_page(url) 
     last_page = get_last_page(parsed_page.find("ul", {'class': 'pagination'}))
 
     items = []
-    get_page_data(items, parsed_page)
+    get_page_data(items, parsed_page, conf)
 
     if last_page > 1:
         for i in range(2, last_page + 1):
-            url = base_url + "&page={}".format(i)
-            get_page_data(items, get_parsed_page(url))
+            url = url + "&page={}".format(i)
+            get_page_data(items, get_parsed_page(url), conf)
 
     print_list(items)
 
